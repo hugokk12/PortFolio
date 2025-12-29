@@ -5,6 +5,7 @@ import os
 from scripts.streamlit_functions import *
 from tempfile import NamedTemporaryFile
 
+
 st.set_page_config(page_title="Finance Dashboard", layout="wide")
 
 
@@ -16,6 +17,8 @@ try:
 
 except Exception as e:
     st.error(f"Error no category file: {e}")
+
+
 
  
 main()

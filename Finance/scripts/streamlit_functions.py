@@ -4,6 +4,9 @@ import pandas as pd
 import json
 import os
 import plotly.express as px
+from langchain_ollama.llms import OllamaLLM
+from langchain_core.prompts import ChatPromptTemplate
+
 st.set_page_config(page_title="Finance Dashboard", layout="wide")
 
 global category_file
@@ -55,6 +58,7 @@ def main():
     st.title("Finance Dashboard")
 
     uploaded_file = st.file_uploader("Upload your transactions csv file", type=["csv"])
+
     if uploaded_file is not None:
         df = load_transactions(uploaded_file)
         df_debito = df[df['Valor'] > 0]
@@ -112,13 +116,58 @@ def main():
                 total_por_categoria = df_debito_2.groupby('Categoria')['Valor'].sum().reset_index()
                 total_por_categoria = total_por_categoria.sort_values(by='Valor', ascending=False)
                 fig = px.bar(total_por_categoria, x='Categoria', y='Valor', title='Total de Débitos por Categoria')
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             with subtab2:
-                total_por_subcategoria = df_debito_2.groupby('SubCategoria')['Valor'].sum().reset_index()
-                total_por_subcategoria = total_por_subcategoria.sort_values(by='Valor', ascending=False)
+                total_por_subcategoria = df_debito_2.groupby(['Categoria','SubCategoria'])['Valor'].sum().reset_index()
+                total_por_subcategoria = df_debito_2.sort_values(by='Valor', ascending=False)
                 fig2 = px.bar(total_por_subcategoria, x='SubCategoria', y='Valor', title='Total de Débitos por Subcategoria')
-                st.plotly_chart(fig2, use_container_width=True)
+                st.plotly_chart(fig2, width='stretch')
+
+
+            st.header("Análise IA")
+            add_button = st.button("Gerar Insights com IA")
+            if add_button:
+                insight = Gerar_Insights(df_debito)
+                st.write(insight)
+
+            # st.header("Análise IA")
+            # add_button = st.button("Gerar Categorias com IA")
+            # if add_button:
+            #     insight = Gerar_categorias(df_debito)
+            #     st.write(insight)
+            
 
         with tab2:
             st.header("Análise de Créditos")
             st.write(df_credito) 
+
+
+def Gerar_Insights(df):
+    model = OllamaLLM(model="llama3.2")
+
+    template = """
+    You are an exeprt in answering questions about personal finance
+
+    Here is the finance history: {history}
+
+    Here is the question to answer: {question}
+    """
+    prompt = ChatPromptTemplate.from_template(template)
+    chain = prompt | model
+
+    print("\n\n-------------------------------")
+    question = "Give me a finance insight about my finance history"
+    result = chain.invoke({"history": df.to_json(), "question": question})
+    return result
+
+def Gerar_categorias(df):
+    model = OllamaLLM(model="llama3.2")
+
+    template = """
+    A partir do arquivo abaixo, gere um arquivo com uma lista de categorias financeiras relevantes para classificar as transações. Considere categorias amplas que possam abranger diversos tipos de despesas e receitas, como 'Alimentação', 'Transporte', 'Moradia', 'Lazer', 'Saúde', 'Educação', entre outras. Evite categorias muito específicas ou detalhadas.
+    {history}
+    """
+    prompt = ChatPromptTemplate.from_template(template)
+    chain = prompt | model
+    result = chain.invoke({"history": df['Categoria'].to_json()})
+    return result
