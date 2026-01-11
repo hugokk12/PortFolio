@@ -1,4 +1,5 @@
 .venv/
 
 Finance/data/private
+ChurnPrediction/data
 Python/digit_analyzer
